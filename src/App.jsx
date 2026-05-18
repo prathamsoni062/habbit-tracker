@@ -19,7 +19,7 @@ const CATEGORY_OPTIONS = [
 ];
 const PIE_COLORS = ["#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#84CC16", "#F97316"];
 
-const API_URL = "http://localhost:4000/api/habits";
+const API_URL = "https://habbit-tracker-backend-2rib.onrender.com/api/habits";
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
