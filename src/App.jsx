@@ -1,121 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus,
-  Moon,
-  Sun,
-  Search,
-  Filter,
-  Trash2,
-  Edit3,
-  Calendar,
-  Flame,
-  Target,
-  Download,
-  Upload,
-  Archive,
-  CheckCircle2,
-  Circle,
-  X,
-  BarChart3,
-  ListTodo,
-  Sparkles,
-  Bell,
-  Trophy,
+  Plus, Moon, Sun, Search, Filter, Trash2, Edit3, Calendar,
+  Flame, Target, Download, Upload, Archive, CheckCircle2,
+  Circle, X, BarChart3, ListTodo, Sparkles, Bell, Trophy,
 } from "lucide-react";
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  LineChart,
-  Line,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
+  LineChart, Line, CartesianGrid, PieChart, Pie, Cell,
 } from "recharts";
 
-const STORAGE_KEY = "habit-tracker-pro-v1";
 const THEME_KEY = "habit-tracker-theme";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const FREQUENCIES = ["Daily", "Weekdays", "Weekends", "Custom"];
 const CATEGORY_OPTIONS = [
-  "Health",
-  "Fitness",
-  "Learning",
-  "Work",
-  "Mindfulness",
-  "Reading",
-  "Finance",
-  "Personal",
+  "Health", "Fitness", "Learning", "Work",
+  "Mindfulness", "Reading", "Finance", "Personal",
 ];
 const PIE_COLORS = ["#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#84CC16", "#F97316"];
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const API_URL = "http://localhost:4000/api/habits";
+
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-
-const defaultHabits = [
-  {
-    id: uid(),
-    name: "Drink 2L Water",
-    category: "Health",
-    frequency: "Daily",
-    customDays: [],
-    target: 1,
-    unit: "times",
-    preferredTime: "08:00",
-    color: "from-blue-500 to-cyan-500",
-    notes: "Keep a bottle on the desk.",
-    archived: false,
-    createdAt: new Date().toISOString(),
-    completions: {
-      [todayKey()]: 1,
-    },
-  },
-  {
-    id: uid(),
-    name: "Read 20 Pages",
-    category: "Learning",
-    frequency: "Daily",
-    customDays: [],
-    target: 20,
-    unit: "pages",
-    preferredTime: "21:00",
-    color: "from-violet-500 to-fuchsia-500",
-    notes: "Non-fiction or tech books.",
-    archived: false,
-    createdAt: new Date().toISOString(),
-    completions: {},
-  },
-  {
-    id: uid(),
-    name: "Workout",
-    category: "Fitness",
-    frequency: "Custom",
-    customDays: [1, 3, 5],
-    target: 1,
-    unit: "sessions",
-    preferredTime: "18:00",
-    color: "from-emerald-500 to-lime-500",
-    notes: "Strength or cardio.",
-    archived: false,
-    createdAt: new Date().toISOString(),
-    completions: {},
-  },
-];
-
-function loadHabits() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : defaultHabits;
-  } catch {
-    return defaultHabits;
-  }
-}
 
 function getIsScheduledToday(habit, date = new Date()) {
   const day = date.getDay();
@@ -474,7 +381,7 @@ function HabitForm({ initialHabit, onSave, onClose }) {
 }
 
 export default function HabitTrackerPro() {
-  const [habits, setHabits] = useState(defaultHabits);
+  const [habits, setHabits] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -492,13 +399,13 @@ export default function HabitTrackerPro() {
     setDarkMode(isDark);
   }, []);
 
+  // Fetch habits from Backend
   useEffect(() => {
-    setHabits(loadHabits());
+    fetch(API_URL)
+      .then((res) => res.json())
+      .then((data) => setHabits(data))
+      .catch((err) => console.error("Error fetching habits:", err));
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
-  }, [habits]);
 
   useEffect(() => {
     localStorage.setItem(THEME_KEY, darkMode ? "dark" : "light");
@@ -595,61 +502,87 @@ export default function HabitTrackerPro() {
     });
   }, [activeHabits]);
 
-  const updateHabitProgress = (habitId, delta) => {
-    const key = todayKey();
-    setHabits((prev) =>
-      prev.map((habit) => {
-        if (habit.id !== habitId) return habit;
-        const current = Number(habit.completions?.[key] || 0);
-        const next = Math.max(0, current + delta);
-        return {
-          ...habit,
-          completions: { ...habit.completions, [key]: next },
-        };
-      })
-    );
+  // Network Calls Handlers
+  const updateHabitProgress = async (habitId, delta) => {
+    try {
+      const res = await fetch(`${API_URL}/${habitId}/progress`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: todayKey(), delta })
+      });
+      if (res.ok) {
+        const updatedHabit = await res.json();
+        setHabits((prev) => prev.map((h) => (h._id === updatedHabit._id ? updatedHabit : h)));
+      }
+    } catch (err) { console.error("Failed to update progress", err); }
   };
 
-  const toggleComplete = (habitId) => {
-    const key = todayKey();
-    setHabits((prev) =>
-      prev.map((habit) => {
-        if (habit.id !== habitId) return habit;
-        const done = isCompletedForDay(habit, key);
-        return {
-          ...habit,
-          completions: {
-            ...habit.completions,
-            [key]: done ? 0 : Number(habit.target || 1),
-          },
-        };
-      })
-    );
+  const toggleComplete = async (habitId) => {
+    try {
+      const res = await fetch(`${API_URL}/${habitId}/toggle`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: todayKey() })
+      });
+      if (res.ok) {
+        const updatedHabit = await res.json();
+        setHabits((prev) => prev.map((h) => (h._id === updatedHabit._id ? updatedHabit : h)));
+      }
+    } catch (err) { console.error("Failed to toggle completion", err); }
   };
 
-  const saveHabit = (habitData) => {
-    if (editingHabit) {
-      setHabits((prev) =>
-        prev.map((habit) =>
-          habit.id === editingHabit.id
-            ? { ...habit, ...habitData }
-            : habit
-        )
-      );
-    } else {
-      setHabits((prev) => [
-        {
-          id: uid(),
-          archived: false,
-          createdAt: new Date().toISOString(),
-          completions: {},
-          ...habitData,
-        },
-        ...prev,
-      ]);
+  const saveHabit = async (habitData) => {
+    try {
+      if (editingHabit) {
+        const res = await fetch(`${API_URL}/${editingHabit._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(habitData)
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setHabits((prev) => prev.map((h) => (h._id === updated._id ? updated : h)));
+        }
+      } else {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(habitData)
+        });
+        if (res.ok) {
+          const created = await res.json();
+          setHabits((prev) => [created, ...prev]);
+        }
+      }
+      setEditingHabit(null);
+      setFormOpen(false);
+    } catch (err) { console.error("Failed to save habit", err); }
+  };
+
+  const toggleArchive = async (habitId) => {
+    try {
+      const res = await fetch(`${API_URL}/${habitId}/archive`, { method: "PATCH" });
+      if (res.ok) {
+        const updated = await res.json();
+        setHabits((prev) => prev.map((h) => (h._id === updated._id ? updated : h)));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const deleteHabit = async (habitId) => {
+    try {
+      const res = await fetch(`${API_URL}/${habitId}`, { method: "DELETE" });
+      if (res.ok) {
+        setHabits((prev) => prev.filter((h) => h._id !== habitId));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const markAllDueDone = async () => {
+    const dueHabits = habits.filter(h => getIsScheduledToday(h) && !h.archived && !isCompletedForDay(h));
+    for (const habit of dueHabits) {
+      await toggleComplete(habit._id);
     }
-    setEditingHabit(null);
-    setFormOpen(false);
   };
 
   const exportData = () => {
@@ -673,20 +606,6 @@ export default function HabitTrackerPro() {
       } catch { }
     };
     reader.readAsText(file);
-  };
-
-  const markAllDueDone = () => {
-    const key = todayKey();
-    setHabits((prev) =>
-      prev.map((habit) =>
-        getIsScheduledToday(habit) && !habit.archived
-          ? {
-            ...habit,
-            completions: { ...habit.completions, [key]: Number(habit.target || 1) },
-          }
-          : habit
-      )
-    );
   };
 
   return (
@@ -808,7 +727,7 @@ export default function HabitTrackerPro() {
                     <BarChart3 className="h-5 w-5 text-slate-400" />
                   </div>
                   <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <BarChart data={weeklyChartData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.12} />
                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
@@ -829,7 +748,7 @@ export default function HabitTrackerPro() {
                     </div>
                   </div>
                   <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <PieChart>
                         <Pie data={categoryPieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
                           {categoryPieData.map((_, index) => (
@@ -860,7 +779,7 @@ export default function HabitTrackerPro() {
                     </div>
                   </div>
                   <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <LineChart data={consistencyData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.12} />
                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
@@ -883,7 +802,7 @@ export default function HabitTrackerPro() {
                   <div className="space-y-3">
                     {todayHabits.length ? (
                       todayHabits.slice(0, 5).map((habit) => (
-                        <div key={habit.id} className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/60">
+                        <div key={habit._id} className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/60">
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <p className="font-medium">{habit.name}</p>
@@ -970,7 +889,7 @@ export default function HabitTrackerPro() {
                     const scheduledToday = getIsScheduledToday(habit);
 
                     return (
-                      <motion.div key={habit.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                      <motion.div key={habit._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                         <Card className="overflow-hidden">
                           <div className={`mb-4 h-2 rounded-full bg-gradient-to-r ${habit.color}`} />
                           <div className="grid gap-4 lg:grid-cols-[1.2fr_0.9fr_0.8fr_auto] lg:items-center">
@@ -1012,10 +931,10 @@ export default function HabitTrackerPro() {
                                   <div className={`h-2 rounded-full bg-gradient-to-r ${habit.color}`} style={{ width: `${progress}%` }} />
                                 </div>
                                 <div className="mt-4 flex items-center gap-2">
-                                  <AppButton onClick={() => updateHabitProgress(habit.id, -1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">-1</AppButton>
-                                  <AppButton onClick={() => updateHabitProgress(habit.id, 1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">+1</AppButton>
+                                  <AppButton onClick={() => updateHabitProgress(habit._id, -1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">-1</AppButton>
+                                  <AppButton onClick={() => updateHabitProgress(habit._id, 1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">+1</AppButton>
                                   <AppButton
-                                    onClick={() => toggleComplete(habit.id)}
+                                    onClick={() => toggleComplete(habit._id)}
                                     className={doneToday ? "bg-emerald-600 text-white" : "bg-slate-900 text-white dark:bg-white dark:text-slate-900"}
                                   >
                                     {doneToday ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
@@ -1049,16 +968,14 @@ export default function HabitTrackerPro() {
                                 Edit
                               </AppButton>
                               <AppButton
-                                onClick={() =>
-                                  setHabits((prev) => prev.map((h) => (h.id === habit.id ? { ...h, archived: !h.archived } : h)))
-                                }
+                                onClick={() => toggleArchive(habit._id)}
                                 className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
                               >
                                 <Archive className="h-4 w-4" />
                                 {habit.archived ? "Restore" : "Archive"}
                               </AppButton>
                               <AppButton
-                                onClick={() => setHabits((prev) => prev.filter((h) => h.id !== habit.id))}
+                                onClick={() => deleteHabit(habit._id)}
                                 className="bg-red-600 text-white"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1143,7 +1060,7 @@ export default function HabitTrackerPro() {
                     <li>• Notes, categories, reminders, and target units</li>
                     <li>• Search, filter, sort, archive, import, export</li>
                     <li>• Dashboard analytics and completion heatmap</li>
-                    <li>• Local storage persistence and dark mode</li>
+                    <li>• MongoDB persistence and dark mode</li>
                   </ul>
                 </div>
               </Card>
