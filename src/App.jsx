@@ -127,7 +127,7 @@ function getLevel(count) {
 function AppButton({ children, className = "", ...props }) {
   return (
     <button
-      className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition active:scale-[0.98] ${className}`}
+      className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition active:scale-[0.98] whitespace-nowrap ${className}`}
       {...props}
     >
       {children}
@@ -137,7 +137,7 @@ function AppButton({ children, className = "", ...props }) {
 
 function Card({ children, className = "" }) {
   return (
-    <div className={`rounded-3xl border border-slate-200/80 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 ${className}`}>
+    <div className={`rounded-3xl border border-slate-200/80 bg-white/85 p-4 sm:p-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 ${className}`}>
       {children}
     </div>
   );
@@ -190,14 +190,17 @@ function Modal({ open, title, onClose, children }) {
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
             className="fixed left-1/2 top-1/2 z-50 w-[95vw] max-w-3xl -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-              <div className="mb-4 flex items-center justify-between">
+            {/* Added Flex & Scroll to Modal container for mobile support */}
+            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 flex flex-col max-h-[90vh]">
+              <div className="mb-4 flex items-center justify-between shrink-0">
                 <h3 className="text-xl font-semibold">{title}</h3>
                 <button onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              {children}
+              <div className="overflow-y-auto pr-1 hide-scrollbar">
+                {children}
+              </div>
             </div>
           </motion.div>
         </>
@@ -353,7 +356,7 @@ function HabitForm({ initialHabit, onSave, onClose }) {
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium">Notes</label>
           <Textarea
-            rows={4}
+            rows={3}
             value={form.notes}
             onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
             placeholder="Motivation, cue, reward, or extra guidance"
@@ -361,8 +364,8 @@ function HabitForm({ initialHabit, onSave, onClose }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-end gap-3 pt-2">
-        <AppButton onClick={onClose} className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+      <div className="flex flex-wrap justify-end gap-3 pt-4 sm:pt-2">
+        <AppButton onClick={onClose} className="w-full sm:w-auto justify-center bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           Cancel
         </AppButton>
         <AppButton
@@ -370,7 +373,7 @@ function HabitForm({ initialHabit, onSave, onClose }) {
             if (!form.name.trim()) return;
             onSave(form);
           }}
-          className="bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+          className="w-full sm:w-auto justify-center bg-slate-900 text-white dark:bg-white dark:text-slate-900"
         >
           <CheckCircle2 className="h-4 w-4" />
           Save habit
@@ -611,8 +614,9 @@ export default function HabitTrackerPro() {
   return (
     <div className={`${darkMode ? "dark" : ""}`}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-900 transition-colors dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100">
-        <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+        {/* Adjusted padding for mobile */}
+        <div className="mx-auto max-w-7xl p-3 sm:p-4 md:p-6 lg:p-8">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-4 sm:mb-6">
             <Card className="overflow-hidden border-none bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 text-white dark:from-slate-900 dark:via-indigo-950 dark:to-black">
               <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
                 <div>
@@ -628,18 +632,18 @@ export default function HabitTrackerPro() {
                   <p className="mt-3 max-w-2xl text-sm text-slate-200 md:text-base">
                     Build better routines with streaks, analytics, category tracking, reminders, notes, archive mode, import/export, and a beautiful dashboard.
                   </p>
-                  <div className="mt-5 flex flex-wrap gap-3">
+                  <div className="mt-5 flex flex-wrap gap-2 sm:gap-3">
                     <AppButton
                       onClick={() => {
                         setEditingHabit(null);
                         setFormOpen(true);
                       }}
-                      className="bg-white text-slate-900"
+                      className="bg-white text-slate-900 flex-1 sm:flex-none justify-center"
                     >
                       <Plus className="h-4 w-4" />
                       Add habit
                     </AppButton>
-                    <AppButton onClick={markAllDueDone} className="bg-white/10 text-white backdrop-blur hover:bg-white/15">
+                    <AppButton onClick={markAllDueDone} className="bg-white/10 text-white backdrop-blur hover:bg-white/15 flex-1 sm:flex-none justify-center">
                       <CheckCircle2 className="h-4 w-4" />
                       Mark all due done
                     </AppButton>
@@ -674,7 +678,8 @@ export default function HabitTrackerPro() {
           </motion.div>
 
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Added overflow-x-auto and hide-scrollbar for mobile navigation */}
+            <div className="flex overflow-x-auto hide-scrollbar sm:flex-wrap items-center gap-2 pb-1 sm:pb-0">
               {[
                 ["dashboard", "Dashboard", BarChart3],
                 ["habits", "Habits", ListTodo],
@@ -683,7 +688,7 @@ export default function HabitTrackerPro() {
                 <button
                   key={key}
                   onClick={() => setView(key)}
-                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium ${view === key ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200"}`}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium whitespace-nowrap ${view === key ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200"}`}
                 >
                   <Icon className="h-4 w-4" />
                   {label}
@@ -691,7 +696,7 @@ export default function HabitTrackerPro() {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex overflow-x-auto hide-scrollbar sm:flex-wrap items-center gap-2 pb-1 sm:pb-0">
               <AppButton onClick={() => setDarkMode((p) => !p)} className="bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200">
                 {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 {darkMode ? "Light" : "Dark"}
@@ -710,7 +715,8 @@ export default function HabitTrackerPro() {
 
           {view === "dashboard" && (
             <div className="grid gap-6">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {/* Stat Cards - responsive grid */}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard title="Active habits" value={metrics.total} subtitle="Your current routine count" icon={Target} gradient="from-indigo-500 to-purple-500" />
                 <StatCard title="Due today" value={metrics.dueToday} subtitle="Scheduled habits for today" icon={Calendar} gradient="from-emerald-500 to-lime-500" />
                 <StatCard title="Completed today" value={metrics.completedToday} subtitle="Progress made today" icon={CheckCircle2} gradient="from-sky-500 to-cyan-500" />
@@ -726,7 +732,8 @@ export default function HabitTrackerPro() {
                     </div>
                     <BarChart3 className="h-5 w-5 text-slate-400" />
                   </div>
-                  <div className="h-80">
+                  {/* Made charts responsive in height: h-60 on mobile, h-80 on md+ */}
+                  <div className="h-60 sm:h-80">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <BarChart data={weeklyChartData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.12} />
@@ -747,7 +754,7 @@ export default function HabitTrackerPro() {
                       <p className="text-sm text-slate-500 dark:text-slate-400">See how your routine is distributed</p>
                     </div>
                   </div>
-                  <div className="h-80">
+                  <div className="h-60 sm:h-80">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <PieChart>
                         <Pie data={categoryPieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
@@ -778,7 +785,7 @@ export default function HabitTrackerPro() {
                       <p className="text-sm text-slate-500 dark:text-slate-400">Daily total completed habits</p>
                     </div>
                   </div>
-                  <div className="h-80">
+                  <div className="h-60 sm:h-80">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <LineChart data={consistencyData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.12} />
@@ -871,7 +878,7 @@ export default function HabitTrackerPro() {
                     ))}
                   </Select>
 
-                  <AppButton onClick={() => setShowArchived((p) => !p)} className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <AppButton onClick={() => setShowArchived((p) => !p)} className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 justify-center">
                     <Archive className="h-4 w-4" />
                     {showArchived ? "Show Active" : "Archived"}
                   </AppButton>
@@ -905,18 +912,18 @@ export default function HabitTrackerPro() {
                                 )}
                               </div>
                               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{habit.notes || "No notes added."}</p>
-                              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                                <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">Current streak</p>
-                                  <p className="mt-1 text-lg font-semibold">{streak} days</p>
+                              <div className="mt-4 grid gap-3 grid-cols-3">
+                                <div className="rounded-2xl bg-slate-50 p-2 sm:p-3 dark:bg-slate-800/60 text-center sm:text-left">
+                                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Current streak</p>
+                                  <p className="mt-1 text-base sm:text-lg font-semibold">{streak}</p>
                                 </div>
-                                <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">Best streak</p>
-                                  <p className="mt-1 text-lg font-semibold">{best} days</p>
+                                <div className="rounded-2xl bg-slate-50 p-2 sm:p-3 dark:bg-slate-800/60 text-center sm:text-left">
+                                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Best streak</p>
+                                  <p className="mt-1 text-base sm:text-lg font-semibold">{best}</p>
                                 </div>
-                                <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">Completed days</p>
-                                  <p className="mt-1 text-lg font-semibold">{completedDays}</p>
+                                <div className="rounded-2xl bg-slate-50 p-2 sm:p-3 dark:bg-slate-800/60 text-center sm:text-left">
+                                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Completed</p>
+                                  <p className="mt-1 text-base sm:text-lg font-semibold">{completedDays}</p>
                                 </div>
                               </div>
                             </div>
@@ -930,22 +937,22 @@ export default function HabitTrackerPro() {
                                 <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700">
                                   <div className={`h-2 rounded-full bg-gradient-to-r ${habit.color}`} style={{ width: `${progress}%` }} />
                                 </div>
-                                <div className="mt-4 flex items-center gap-2">
-                                  <AppButton onClick={() => updateHabitProgress(habit._id, -1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">-1</AppButton>
-                                  <AppButton onClick={() => updateHabitProgress(habit._id, 1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">+1</AppButton>
+                                <div className="mt-4 flex flex-wrap items-center gap-2">
+                                  <AppButton onClick={() => updateHabitProgress(habit._id, -1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100 flex-1 sm:flex-none justify-center">-1</AppButton>
+                                  <AppButton onClick={() => updateHabitProgress(habit._id, 1)} className="bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100 flex-1 sm:flex-none justify-center">+1</AppButton>
                                   <AppButton
                                     onClick={() => toggleComplete(habit._id)}
-                                    className={doneToday ? "bg-emerald-600 text-white" : "bg-slate-900 text-white dark:bg-white dark:text-slate-900"}
+                                    className={`flex-[2] sm:flex-none justify-center ${doneToday ? "bg-emerald-600 text-white" : "bg-slate-900 text-white dark:bg-white dark:text-slate-900"}`}
                                   >
                                     {doneToday ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-                                    {doneToday ? "Completed" : "Complete"}
+                                    {doneToday ? "Done" : "Complete"}
                                   </AppButton>
                                 </div>
                                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Reminder: {habit.preferredTime || "Anytime"}</p>
                               </div>
                             </div>
 
-                            <div className="grid gap-2">
+                            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
                               <div className="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
                                 <p className="text-slate-500 dark:text-slate-400">Created</p>
                                 <p className="font-medium">{formatDate(habit.createdAt)}</p>
@@ -956,30 +963,31 @@ export default function HabitTrackerPro() {
                               </div>
                             </div>
 
-                            <div className="flex flex-row gap-2 lg:flex-col">
+                            {/* Changed flex layout to grid on mobile so buttons share width equally */}
+                            <div className="grid grid-cols-3 sm:flex sm:flex-row lg:flex-col gap-2">
                               <AppButton
                                 onClick={() => {
                                   setEditingHabit(habit);
                                   setFormOpen(true);
                                 }}
-                                className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 justify-center"
                               >
                                 <Edit3 className="h-4 w-4" />
-                                Edit
+                                <span className="hidden sm:inline">Edit</span>
                               </AppButton>
                               <AppButton
                                 onClick={() => toggleArchive(habit._id)}
-                                className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 justify-center"
                               >
                                 <Archive className="h-4 w-4" />
-                                {habit.archived ? "Restore" : "Archive"}
+                                <span className="hidden sm:inline">{habit.archived ? "Restore" : "Archive"}</span>
                               </AppButton>
                               <AppButton
                                 onClick={() => deleteHabit(habit._id)}
-                                className="bg-red-600 text-white"
+                                className="bg-red-600 text-white justify-center"
                               >
                                 <Trash2 className="h-4 w-4" />
-                                Delete
+                                <span className="hidden sm:inline">Delete</span>
                               </AppButton>
                             </div>
                           </div>
@@ -1014,18 +1022,19 @@ export default function HabitTrackerPro() {
                   </div>
                   <Calendar className="h-5 w-5 text-slate-400" />
                 </div>
-                <div className="grid grid-cols-7 gap-2 text-center text-xs text-slate-500 dark:text-slate-400">
+                {/* Adjusted Font Sizes and Gaps for mobile calendar view */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
                   {DAYS.map((day) => (
                     <div key={day} className="py-2 font-medium">{day}</div>
                   ))}
                   {monthHeatmap.map((cell, idx) => (
                     <div key={idx} className="aspect-square">
-                      {cell ? (
-                        <div className={`flex h-full flex-col items-center justify-center rounded-2xl ${getLevel(cell.count)}`}>
-                          <span className="text-xs font-semibold">{cell.date.getDate()}</span>
-                          <span className="text-[10px] opacity-75">{cell.count}</span>
-                        </div>
-                      ) : (
+                     {cell ? (
+  <div className={`flex h-full flex-col items-center justify-center rounded-xl sm:rounded-2xl ${getLevel(cell.count)}`}>
+    <span className="text-[10px] sm:text-xs font-semibold leading-none sm:leading-tight">{cell.date.getDate()}</span>
+    <span className="text-[8px] sm:text-[10px] opacity-80 leading-none sm:leading-tight mt-[2px] sm:mt-0">{cell.count}</span>
+  </div>
+) : (
                         <div className="h-full rounded-2xl bg-transparent" />
                       )}
                     </div>
