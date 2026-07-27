@@ -20,7 +20,7 @@ const CATEGORY_OPTIONS = [
 ];
 const PIE_COLORS = ["#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#84CC16", "#F97316"];
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://habbit-tracker-backend-2rib.onrender.com";
 const API_URL = `${API_BASE_URL}/api/habits`;
 
 const getAuthHeaders = () => {
