@@ -77,8 +77,8 @@ Response:
 Create a `.env.local` file in the project root:
 
 ```env
-# Backend API URL (default: http://localhost:5001)
-VITE_API_URL=http://localhost:5001
+# Backend API URL (default: https://habbit-tracker-backend-2rib.onrender.com)
+VITE_API_URL=https://habbit-tracker-backend-2rib.onrender.com
 
 # Google OAuth Client ID
 VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
@@ -149,7 +149,7 @@ These endpoints require the JWT token in the Authorization header:
 ### 1. Start Backend Server
 
 ```bash
-# Make sure your backend is running on http://localhost:5001
+# Make sure your backend is running on https://habbit-tracker-backend-2rib.onrender.com
 # (or whatever URL is set in VITE_API_URL)
 npm run dev  # or your backend start command
 ```

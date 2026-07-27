@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, Loader } from "lucide-react";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://habbit-tracker-backend-2rib.onrender.com";
 const GOOGLE_CLIENT_ID = "25790304178-gv2ckv70n9281o5alg4qacu3qsgjbelk.apps.googleusercontent.com";
 
 export function AuthPage({ onAuthSuccess }) {
