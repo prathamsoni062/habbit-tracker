@@ -4,6 +4,7 @@ import {
   Plus, Moon, Sun, Search, Filter, Trash2, Edit3, Calendar,
   Flame, Target, Download, Upload, Archive, CheckCircle2,
   Circle, X, BarChart3, ListTodo, Sparkles, Bell, Trophy,
+  LogOut, User,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -19,7 +20,16 @@ const CATEGORY_OPTIONS = [
 ];
 const PIE_COLORS = ["#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#84CC16", "#F97316"];
 
-const API_URL = "https://habbit-tracker-backend-2rib.onrender.com/api/habits";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API_URL = `${API_BASE_URL}/api/habits`;
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("authToken");
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -380,7 +390,7 @@ function HabitForm({ initialHabit, onSave, onClose }) {
   );
 }
 
-export default function HabitTrackerPro() {
+export default function HabitTrackerPro({ user, onLogout }) {
   const [habits, setHabits] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -401,7 +411,7 @@ export default function HabitTrackerPro() {
 
   // Fetch habits from Backend
   useEffect(() => {
-    fetch(API_URL)
+    fetch(API_URL, { headers: getAuthHeaders() })
       .then((res) => res.json())
       .then((data) => setHabits(data))
       .catch((err) => console.error("Error fetching habits:", err));
@@ -507,7 +517,7 @@ export default function HabitTrackerPro() {
     try {
       const res = await fetch(`${API_URL}/${habitId}/progress`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ date: todayKey(), delta })
       });
       if (res.ok) {
@@ -521,7 +531,7 @@ export default function HabitTrackerPro() {
     try {
       const res = await fetch(`${API_URL}/${habitId}/toggle`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ date: todayKey() })
       });
       if (res.ok) {
@@ -536,7 +546,7 @@ export default function HabitTrackerPro() {
       if (editingHabit) {
         const res = await fetch(`${API_URL}/${editingHabit._id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify(habitData)
         });
         if (res.ok) {
@@ -546,7 +556,7 @@ export default function HabitTrackerPro() {
       } else {
         const res = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify(habitData)
         });
         if (res.ok) {
@@ -561,7 +571,7 @@ export default function HabitTrackerPro() {
 
   const toggleArchive = async (habitId) => {
     try {
-      const res = await fetch(`${API_URL}/${habitId}/archive`, { method: "PATCH" });
+      const res = await fetch(`${API_URL}/${habitId}/archive`, { method: "PATCH", headers: getAuthHeaders() });
       if (res.ok) {
         const updated = await res.json();
         setHabits((prev) => prev.map((h) => (h._id === updated._id ? updated : h)));
@@ -571,7 +581,7 @@ export default function HabitTrackerPro() {
 
   const deleteHabit = async (habitId) => {
     try {
-      const res = await fetch(`${API_URL}/${habitId}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/${habitId}`, { method: "DELETE", headers: getAuthHeaders() });
       if (res.ok) {
         setHabits((prev) => prev.filter((h) => h._id !== habitId));
       }
@@ -692,6 +702,10 @@ export default function HabitTrackerPro() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                <User className="h-4 w-4" />
+                <span className="text-sm font-medium truncate max-w-[150px]">{user?.name || user?.email}</span>
+              </div>
               <AppButton onClick={() => setDarkMode((p) => !p)} className="bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200">
                 {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 {darkMode ? "Light" : "Dark"}
@@ -703,6 +717,10 @@ export default function HabitTrackerPro() {
               <AppButton onClick={() => fileInputRef.current?.click()} className="bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200">
                 <Upload className="h-4 w-4" />
                 Import
+              </AppButton>
+              <AppButton onClick={onLogout} className="bg-red-500 text-white hover:bg-red-600">
+                <LogOut className="h-4 w-4" />
+                Logout
               </AppButton>
               <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={importData} />
             </div>
