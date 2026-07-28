@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, Loader } from "lucide-react";
-import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://habbit-tracker-backend-2rib.onrender.com";
 const GOOGLE_CLIENT_ID = "25790304178-gv2ckv70n9281o5alg4qacu3qsgjbelk.apps.googleusercontent.com";
 
-export function AuthPage({ onAuthSuccess }) {
+// Inner component so we can safely use the useGoogleLogin hook within the Provider context
+function AuthFormContent({ onAuthSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -98,60 +99,67 @@ export function AuthPage({ onAuthSuccess }) {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setLoading(true);
-    try {
-      const payload = JSON.parse(atob(credentialResponse.credential.split(".")[1]));
-
-      const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: payload.name || payload.given_name || "Google User",
-          email: payload.email,
-          googleId: payload.sub,
-          avatar: payload.picture,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Google login failed");
-      }
-
-      if (data.token) {
-        localStorage.setItem("authToken", data.token);
-      }
-
-      const userData = {
-        id: data.user?.id,
-        name: data.user?.name,
-        email: data.user?.email,
-        picture: data.user?.avatar,
-        provider: "google",
-      };
-
-      localStorage.setItem("user", JSON.stringify(userData));
-      onAuthSuccess(userData);
-    } catch (err) {
-      setError(err.message || "Google login failed. Please try again.");
-      console.error("Google auth error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleGoogleError = () => {
     setError("Google login failed. Please try again.");
+    setLoading(false);
   };
 
+  // Custom Google Login Hook (Bypasses iframe popup blockers)
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      try {
+        // 1. Fetch user info directly from Google using the access token
+        const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const userInfo = await userInfoResponse.json();
+
+        // 2. Send it to your backend
+        const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: userInfo.name || userInfo.given_name || "Google User",
+            email: userInfo.email,
+            googleId: userInfo.sub,
+            avatar: userInfo.picture,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Google login failed");
+        }
+
+        if (data.token) {
+          localStorage.setItem("authToken", data.token);
+        }
+
+        const userData = {
+          id: data.user?.id,
+          name: data.user?.name,
+          email: data.user?.email,
+          picture: data.user?.avatar,
+          provider: "google",
+        };
+
+        localStorage.setItem("user", JSON.stringify(userData));
+        onAuthSuccess(userData);
+      } catch (err) {
+        setError(err.message || "Google login failed. Please try again.");
+        console.error("Google auth error:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: handleGoogleError,
+  });
+
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 flex items-center justify-center p-4">
-        <motion.div
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 flex items-center justify-center p-4">
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
@@ -168,15 +176,21 @@ export function AuthPage({ onAuthSuccess }) {
 
           {/* Form */}
           <div className="px-6 py-8">
-            {/* Google Login Button */}
+            {/* Custom Google Login Button */}
             <div className="mb-6">
-              <div className="flex justify-center">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  width="300"
+              <button
+                type="button"
+                onClick={() => loginWithGoogle()}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <img 
+                  src="https://www.svgrepo.com/show/475656/google-color.svg" 
+                  alt="Google" 
+                  className="w-5 h-5" 
                 />
-              </div>
+                {loading ? "Connecting..." : "Sign in with Google"}
+              </button>
             </div>
 
             {/* Divider */}
@@ -305,6 +319,7 @@ export function AuthPage({ onAuthSuccess }) {
               <p className="text-gray-600 text-sm">
                 {isSignUp ? "Already have an account? " : "Don't have an account? "}
                 <button
+                  type="button"
                   onClick={() => {
                     setIsSignUp(!isSignUp);
                     setError("");
@@ -324,12 +339,20 @@ export function AuthPage({ onAuthSuccess }) {
           </div>
         </div>
 
-          {/* Footer */}
-          <p className="text-center text-white text-sm mt-6 opacity-80">
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </p>
-        </motion.div>
-      </div>
+        {/* Footer */}
+        <p className="text-center text-white text-sm mt-6 opacity-80">
+          By continuing, you agree to our Terms of Service and Privacy Policy
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
+// Wrapper component to provide the Google OAuth context
+export function AuthPage({ onAuthSuccess }) {
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthFormContent onAuthSuccess={onAuthSuccess} />
     </GoogleOAuthProvider>
   );
 }
