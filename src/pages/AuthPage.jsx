@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, Loader } from "lucide-react";
-import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin } from "@react-oauth/google";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://habbit-tracker-backend-2rib.onrender.com";
-const GOOGLE_CLIENT_ID = "25790304178-gv2ckv70n9281o5alg4qacu3qsgjbelk.apps.googleusercontent.com";
 
 export function AuthPage({ onAuthSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -101,18 +100,13 @@ export function AuthPage({ onAuthSuccess }) {
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     try {
-      const payload = JSON.parse(atob(credentialResponse.credential.split(".")[1]));
-
-      const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+        const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: payload.name || payload.given_name || "Google User",
-          email: payload.email,
-          googleId: payload.sub,
-          avatar: payload.picture,
+          credential: credentialResponse.credential,
         }),
       });
 
@@ -149,7 +143,7 @@ export function AuthPage({ onAuthSuccess }) {
   };
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 flex items-center justify-center p-4">
         <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -174,6 +168,11 @@ export function AuthPage({ onAuthSuccess }) {
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
                   onError={handleGoogleError}
+                  useOneTap={false}
+                  theme="outline"
+                  size="large"
+                  shape="pill"
+                  text="signin_with"
                   width="300"
                 />
               </div>
@@ -330,6 +329,6 @@ export function AuthPage({ onAuthSuccess }) {
           </p>
         </motion.div>
       </div>
-    </GoogleOAuthProvider>
+    
   );
 }
