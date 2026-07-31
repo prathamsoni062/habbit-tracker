@@ -31,7 +31,17 @@ const getAuthHeaders = () => {
   };
 };
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+// Add this helper to safely get local YYYY-MM-DD
+const toDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Update todayKey to use the new helper
+const todayKey = () => toDateKey(new Date());
+
 const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 function getIsScheduledToday(habit, date = new Date()) {
@@ -59,7 +69,7 @@ function calculateCurrentStreak(habit) {
   let streak = 0;
   const cursor = new Date();
   for (let i = 0; i < 365; i++) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = toDateKey(cursor); // Fixed here
     const scheduled = getIsScheduledToday(habit, cursor);
     if (scheduled && isCompletedForDay(habit, key)) {
       streak += 1;
@@ -79,7 +89,7 @@ function calculateBestStreak(habit) {
   const cursor = new Date(start);
 
   while (cursor <= end) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = toDateKey(cursor); // Fixed here
     const scheduled = getIsScheduledToday(habit, cursor);
     if (scheduled && isCompletedForDay(habit, key)) {
       current += 1;
@@ -97,7 +107,7 @@ function getLast7Days() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0, 10));
+    arr.push(toDateKey(d)); // Fixed here
   }
   return arr;
 }
@@ -107,7 +117,7 @@ function getLast30Days() {
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0, 10));
+    arr.push(toDateKey(d)); // Fixed here
   }
   return arr;
 }
@@ -200,7 +210,8 @@ function Modal({ open, title, onClose, children }) {
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
             className="fixed left-1/2 top-1/2 z-50 w-[95vw] max-w-3xl -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            {/* Added max-h-[90vh] and overflow-y-auto here */}
+            <div className="max-h-[90vh] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-xl font-semibold">{title}</h3>
                 <button onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -506,7 +517,7 @@ export default function HabitTrackerPro({ user, onLogout }) {
     const grid = getMonthGrid(now.getFullYear(), now.getMonth());
     return grid.map((d) => {
       if (!d) return null;
-      const key = d.toISOString().slice(0, 10);
+      const key = toDateKey(d); // Fixed here! No more timezone shift
       const count = activeHabits.filter((h) => isCompletedForDay(h, key)).length;
       return { date: d, count };
     });
