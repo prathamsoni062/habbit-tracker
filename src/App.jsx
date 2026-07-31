@@ -31,7 +31,7 @@ const getAuthHeaders = () => {
   };
 };
 
-// Add this helper to safely get local YYYY-MM-DD
+// Helper to safely get local YYYY-MM-DD
 const toDateKey = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -39,9 +39,7 @@ const toDateKey = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-// Update todayKey to use the new helper
 const todayKey = () => toDateKey(new Date());
-
 const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 function getIsScheduledToday(habit, date = new Date()) {
@@ -141,9 +139,32 @@ function getLevel(count) {
   if (count === 0) return "bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
   if (count === 1) return "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-100";
   if (count === 2) return "bg-emerald-400 text-emerald-900 dark:bg-emerald-700 dark:text-emerald-50";
-  // Fix for 3 or more: explicit white text on the dark green backgrounds
   return "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white";
 }
+
+// Safe notification sender that prevents mobile crashes
+const sendNotification = (title, options) => {
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        if (regs.length > 0 && regs[0].showNotification) {
+          regs[0].showNotification(title, options);
+        } else {
+          new Notification(title, options);
+        }
+      }).catch(() => {
+        new Notification(title, options);
+      });
+    } else {
+      new Notification(title, options);
+    }
+  } catch (error) {
+    console.warn("Native notifications not supported on this mobile browser. Falling back to alert.", error);
+    alert(`⏰ ${title}\n${options.body}`);
+  }
+};
 
 function AppButton({ children, className = "", ...props }) {
   return (
@@ -414,7 +435,6 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const [editingHabit, setEditingHabit] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Notification States
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const notifiedHabitsRef = useRef({ date: todayKey(), ids: new Set() });
 
@@ -424,7 +444,6 @@ export default function HabitTrackerPro({ user, onLogout }) {
     setDarkMode(isDark);
   }, []);
 
-  // Fetch habits from Backend
   useEffect(() => {
     fetch(API_URL, { headers: getAuthHeaders() })
       .then((res) => res.json())
@@ -441,14 +460,12 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const archivedHabits = useMemo(() => habits.filter((h) => h.archived), [habits]);
   const todayHabits = useMemo(() => activeHabits.filter((h) => getIsScheduledToday(h)), [activeHabits]);
 
-  // 1. Check initial notification permission on load
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "granted") {
       setNotificationsEnabled(true);
     }
   }, []);
 
-  // 2. The background timer checking for due habits
   useEffect(() => {
     if (!notificationsEnabled || todayHabits.length === 0) return;
 
@@ -459,28 +476,26 @@ export default function HabitTrackerPro({ user, onLogout }) {
       const currentTime = `${currentHours}:${currentMinutes}`;
       const todayDate = todayKey();
 
-      // Reset the notified tracker if it's a new day
       if (notifiedHabitsRef.current.date !== todayDate) {
         notifiedHabitsRef.current = { date: todayDate, ids: new Set() };
       }
 
       todayHabits.forEach((habit) => {
-        // If it's time, not completed, and we haven't notified them yet today
         if (
           habit.preferredTime === currentTime &&
           !isCompletedForDay(habit, todayDate) &&
           !notifiedHabitsRef.current.ids.has(habit._id)
         ) {
-          new Notification("Habit Reminder", {
+          sendNotification("Habit Reminder", {
             body: `It's time to: ${habit.name}\nTarget: ${habit.target} ${habit.unit}`,
-            icon: "✅", // You can replace this with a path to your app's favicon
+            icon: "✅",
           });
+          
           notifiedHabitsRef.current.ids.add(habit._id);
         }
       });
     };
 
-    // Check immediately, then check every 60 seconds
     checkReminders();
     const intervalId = setInterval(checkReminders, 60000);
 
@@ -573,7 +588,6 @@ export default function HabitTrackerPro({ user, onLogout }) {
     });
   }, [activeHabits]);
 
-  // 3. Handler to request permission when button is clicked
   const toggleNotifications = async () => {
     if (!("Notification" in window)) {
       alert("This browser does not support desktop notifications.");
@@ -581,10 +595,8 @@ export default function HabitTrackerPro({ user, onLogout }) {
     }
     
     if (Notification.permission === "granted") {
-      // If already granted, toggle our local state
       setNotificationsEnabled(!notificationsEnabled);
     } else if (Notification.permission !== "denied") {
-      // Ask for permission
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         setNotificationsEnabled(true);
@@ -594,7 +606,6 @@ export default function HabitTrackerPro({ user, onLogout }) {
     }
   };
 
-  // Network Calls Handlers
   const updateHabitProgress = async (habitId, delta) => {
     try {
       const res = await fetch(`${API_URL}/${habitId}/progress`, {
