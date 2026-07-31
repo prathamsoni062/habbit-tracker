@@ -596,6 +596,12 @@ export default function HabitTrackerPro({ user, onLogout }) {
   }, [activeHabits]);
 
   const toggleNotifications = async () => {
+    // 1. Check for HTTPS / Secure Context First
+    if (!window.isSecureContext) {
+      alert("⚠️ Notifications require a secure (HTTPS) connection. If you are testing on a local IP address on mobile, Apple/Google will block notifications.");
+      return;
+    }
+
     if (!("Notification" in window)) {
       alert("This browser does not support notifications.");
       return;
