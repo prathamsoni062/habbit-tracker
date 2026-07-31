@@ -138,10 +138,11 @@ function getMonthGrid(year, month) {
 }
 
 function getLevel(count) {
-  if (count === 0) return "bg-slate-200 dark:bg-slate-800";
-  if (count === 1) return "bg-emerald-200 dark:bg-emerald-900/60";
-  if (count === 2) return "bg-emerald-400 dark:bg-emerald-700";
-  return "bg-emerald-600 dark:bg-emerald-500";
+  if (count === 0) return "bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
+  if (count === 1) return "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-100";
+  if (count === 2) return "bg-emerald-400 text-emerald-900 dark:bg-emerald-700 dark:text-emerald-50";
+  // Fix for 3 or more: explicit white text on the dark green backgrounds
+  return "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white";
 }
 
 function AppButton({ children, className = "", ...props }) {
@@ -1048,17 +1049,22 @@ export default function HabitTrackerPro({ user, onLogout }) {
                     <div key={day} className="py-2 font-medium">{day}</div>
                   ))}
                   {monthHeatmap.map((cell, idx) => (
-                    <div key={idx} className="aspect-square">
-                      {cell ? (
-                        <div className={`flex h-full flex-col items-center justify-center rounded-2xl ${getLevel(cell.count)}`}>
-                          <span className="text-xs font-semibold">{cell.date.getDate()}</span>
-                          <span className="text-[10px] opacity-75">{cell.count}</span>
-                        </div>
-                      ) : (
-                        <div className="h-full rounded-2xl bg-transparent" />
-                      )}
-                    </div>
-                  ))}
+  <div key={idx} className="aspect-square p-0.5">
+    {cell ? (
+      <div className={`flex h-full flex-col items-center justify-center rounded-2xl ${getLevel(cell.count)}`}>
+        <span className="text-sm font-semibold leading-none">{cell.date.getDate()}</span>
+        {/* Only show the count if it's greater than 0 to save space */}
+        {cell.count > 0 && (
+          <span className="mt-1 text-[10px] font-medium leading-none opacity-90">
+            {cell.count}
+          </span>
+        )}
+      </div>
+    ) : (
+      <div className="h-full rounded-2xl bg-transparent" />
+    )}
+  </div>
+))}
                 </div>
               </Card>
 
