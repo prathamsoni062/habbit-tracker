@@ -31,7 +31,15 @@ const getAuthHeaders = () => {
   };
 };
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+// Helper to safely get local YYYY-MM-DD
+const toDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const todayKey = () => toDateKey(new Date());
 const formatDate = (date) => new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 function getIsScheduledToday(habit, date = new Date()) {
@@ -59,7 +67,7 @@ function calculateCurrentStreak(habit) {
   let streak = 0;
   const cursor = new Date();
   for (let i = 0; i < 365; i++) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = toDateKey(cursor); 
     const scheduled = getIsScheduledToday(habit, cursor);
     if (scheduled && isCompletedForDay(habit, key)) {
       streak += 1;
@@ -79,7 +87,7 @@ function calculateBestStreak(habit) {
   const cursor = new Date(start);
 
   while (cursor <= end) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = toDateKey(cursor); 
     const scheduled = getIsScheduledToday(habit, cursor);
     if (scheduled && isCompletedForDay(habit, key)) {
       current += 1;
@@ -97,7 +105,7 @@ function getLast7Days() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0, 10));
+    arr.push(toDateKey(d)); 
   }
   return arr;
 }
@@ -107,7 +115,7 @@ function getLast30Days() {
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(d.toISOString().slice(0, 10));
+    arr.push(toDateKey(d)); 
   }
   return arr;
 }
@@ -128,11 +136,33 @@ function getMonthGrid(year, month) {
 }
 
 function getLevel(count) {
-  if (count === 0) return "bg-slate-200 dark:bg-slate-800";
-  if (count === 1) return "bg-emerald-200 dark:bg-emerald-900/60";
-  if (count === 2) return "bg-emerald-400 dark:bg-emerald-700";
-  return "bg-emerald-600 dark:bg-emerald-500";
+  if (count === 0) return "bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400";
+  if (count === 1) return "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-100";
+  if (count === 2) return "bg-emerald-400 text-emerald-900 dark:bg-emerald-700 dark:text-emerald-50";
+  return "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white";
 }
+
+// Mobile-compatible notification trigger using Service Worker
+const sendNotification = async (title, options) => {
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    // Mobile Android Chrome requires ServiceWorkerRegistration.showNotification
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, options);
+        return;
+      }
+    }
+
+    // Fallback for Desktop
+    new Notification(title, options);
+  } catch (error) {
+    console.warn("ServiceWorker notification failed, using fallback alert:", error);
+    alert(`⏰ ${title}\n${options.body}`);
+  }
+};
 
 function AppButton({ children, className = "", ...props }) {
   return (
@@ -200,7 +230,7 @@ function Modal({ open, title, onClose, children }) {
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
             className="fixed left-1/2 top-1/2 z-50 w-[95vw] max-w-3xl -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="max-h-[90vh] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-xl font-semibold">{title}</h3>
                 <button onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -403,13 +433,24 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const [editingHabit, setEditingHabit] = useState(null);
   const fileInputRef = useRef(null);
 
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const notifiedHabitsRef = useRef({ date: todayKey(), ids: new Set() });
+
+  // Register Service Worker for Mobile Notifications
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((err) => console.log("Service Worker registration failed:", err));
+    }
+  }, []);
+
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY);
     const isDark = storedTheme ? storedTheme === "dark" : true;
     setDarkMode(isDark);
   }, []);
 
-  // Fetch habits from Backend
   useEffect(() => {
     fetch(API_URL, { headers: getAuthHeaders() })
       .then((res) => res.json())
@@ -425,6 +466,48 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const activeHabits = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archivedHabits = useMemo(() => habits.filter((h) => h.archived), [habits]);
   const todayHabits = useMemo(() => activeHabits.filter((h) => getIsScheduledToday(h)), [activeHabits]);
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!notificationsEnabled || todayHabits.length === 0) return;
+
+    const checkReminders = () => {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, "0");
+      const currentMinutes = String(now.getMinutes()).padStart(2, "0");
+      const currentTime = `${currentHours}:${currentMinutes}`;
+      const todayDate = todayKey();
+
+      if (notifiedHabitsRef.current.date !== todayDate) {
+        notifiedHabitsRef.current = { date: todayDate, ids: new Set() };
+      }
+
+      todayHabits.forEach((habit) => {
+        if (
+          habit.preferredTime === currentTime &&
+          !isCompletedForDay(habit, todayDate) &&
+          !notifiedHabitsRef.current.ids.has(habit._id)
+        ) {
+          sendNotification("Habit Reminder", {
+            body: `It's time to: ${habit.name}\nTarget: ${habit.target} ${habit.unit}`,
+            icon: "✅",
+          });
+          
+          notifiedHabitsRef.current.ids.add(habit._id);
+        }
+      });
+    };
+
+    checkReminders();
+    const intervalId = setInterval(checkReminders, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [notificationsEnabled, todayHabits]);
 
   const filteredHabits = useMemo(() => {
     const source = showArchived ? archivedHabits : activeHabits;
@@ -506,13 +589,45 @@ export default function HabitTrackerPro({ user, onLogout }) {
     const grid = getMonthGrid(now.getFullYear(), now.getMonth());
     return grid.map((d) => {
       if (!d) return null;
-      const key = d.toISOString().slice(0, 10);
+      const key = toDateKey(d); 
       const count = activeHabits.filter((h) => isCompletedForDay(h, key)).length;
       return { date: d, count };
     });
   }, [activeHabits]);
 
-  // Network Calls Handlers
+  const toggleNotifications = async () => {
+    // 1. Check for HTTPS / Secure Context First
+    if (!window.isSecureContext) {
+      alert("⚠️ Notifications require a secure (HTTPS) connection. If you are testing on a local IP address on mobile, Apple/Google will block notifications.");
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      alert("This browser does not support notifications.");
+      return;
+    }
+    
+    if (Notification.permission === "granted") {
+      setNotificationsEnabled(!notificationsEnabled);
+      // Trigger a test notification when turning ON
+      if (!notificationsEnabled) {
+        sendNotification("Notifications Active", {
+          body: "Mobile notifications are configured successfully!",
+        });
+      }
+    } else if (Notification.permission !== "denied") {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        setNotificationsEnabled(true);
+        sendNotification("Notifications Active", {
+          body: "Mobile notifications are configured successfully!",
+        });
+      }
+    } else {
+      alert("Notifications are blocked in your browser/system settings. Please enable them.");
+    }
+  };
+
   const updateHabitProgress = async (habitId, delta) => {
     try {
       const res = await fetch(`${API_URL}/${habitId}/progress`, {
@@ -710,6 +825,15 @@ export default function HabitTrackerPro({ user, onLogout }) {
                 {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 {darkMode ? "Light" : "Dark"}
               </AppButton>
+              
+              <AppButton 
+                onClick={toggleNotifications} 
+                className={`bg-white dark:bg-slate-900 ${notificationsEnabled ? "text-indigo-600 dark:text-indigo-400" : "text-slate-700 dark:text-slate-200"}`}
+              >
+                <Bell className="h-4 w-4" />
+                {notificationsEnabled ? "Notifs On" : "Notifs Off"}
+              </AppButton>
+
               <AppButton onClick={exportData} className="bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200">
                 <Download className="h-4 w-4" />
                 Export
@@ -1037,11 +1161,15 @@ export default function HabitTrackerPro({ user, onLogout }) {
                     <div key={day} className="py-2 font-medium">{day}</div>
                   ))}
                   {monthHeatmap.map((cell, idx) => (
-                    <div key={idx} className="aspect-square">
+                    <div key={idx} className="aspect-square p-0.5">
                       {cell ? (
                         <div className={`flex h-full flex-col items-center justify-center rounded-2xl ${getLevel(cell.count)}`}>
-                          <span className="text-xs font-semibold">{cell.date.getDate()}</span>
-                          <span className="text-[10px] opacity-75">{cell.count}</span>
+                          <span className="text-sm font-semibold leading-none">{cell.date.getDate()}</span>
+                          {cell.count > 0 && (
+                            <span className="mt-1 text-[10px] font-medium leading-none opacity-90">
+                              {cell.count}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <div className="h-full rounded-2xl bg-transparent" />
