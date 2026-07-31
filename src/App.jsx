@@ -142,26 +142,24 @@ function getLevel(count) {
   return "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-white";
 }
 
-// Safe notification sender that prevents mobile crashes
-const sendNotification = (title, options) => {
+// Mobile-compatible notification trigger using Service Worker
+const sendNotification = async (title, options) => {
   try {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        if (regs.length > 0 && regs[0].showNotification) {
-          regs[0].showNotification(title, options);
-        } else {
-          new Notification(title, options);
-        }
-      }).catch(() => {
-        new Notification(title, options);
-      });
-    } else {
-      new Notification(title, options);
+    // Mobile Android Chrome requires ServiceWorkerRegistration.showNotification
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, options);
+        return;
+      }
     }
+
+    // Fallback for Desktop
+    new Notification(title, options);
   } catch (error) {
-    console.warn("Native notifications not supported on this mobile browser. Falling back to alert.", error);
+    console.warn("ServiceWorker notification failed, using fallback alert:", error);
     alert(`⏰ ${title}\n${options.body}`);
   }
 };
@@ -438,6 +436,15 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const notifiedHabitsRef = useRef({ date: todayKey(), ids: new Set() });
 
+  // Register Service Worker for Mobile Notifications
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((err) => console.log("Service Worker registration failed:", err));
+    }
+  }, []);
+
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY);
     const isDark = storedTheme ? storedTheme === "dark" : true;
@@ -590,19 +597,28 @@ export default function HabitTrackerPro({ user, onLogout }) {
 
   const toggleNotifications = async () => {
     if (!("Notification" in window)) {
-      alert("This browser does not support desktop notifications.");
+      alert("This browser does not support notifications.");
       return;
     }
     
     if (Notification.permission === "granted") {
       setNotificationsEnabled(!notificationsEnabled);
+      // Trigger a test notification when turning ON
+      if (!notificationsEnabled) {
+        sendNotification("Notifications Active", {
+          body: "Mobile notifications are configured successfully!",
+        });
+      }
     } else if (Notification.permission !== "denied") {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         setNotificationsEnabled(true);
+        sendNotification("Notifications Active", {
+          body: "Mobile notifications are configured successfully!",
+        });
       }
     } else {
-      alert("Notifications are blocked. Please enable them in your browser settings.");
+      alert("Notifications are blocked in your browser/system settings. Please enable them.");
     }
   };
 
