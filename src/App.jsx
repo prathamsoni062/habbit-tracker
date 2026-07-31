@@ -69,7 +69,7 @@ function calculateCurrentStreak(habit) {
   let streak = 0;
   const cursor = new Date();
   for (let i = 0; i < 365; i++) {
-    const key = toDateKey(cursor); // Fixed here
+    const key = toDateKey(cursor); 
     const scheduled = getIsScheduledToday(habit, cursor);
     if (scheduled && isCompletedForDay(habit, key)) {
       streak += 1;
@@ -89,7 +89,7 @@ function calculateBestStreak(habit) {
   const cursor = new Date(start);
 
   while (cursor <= end) {
-    const key = toDateKey(cursor); // Fixed here
+    const key = toDateKey(cursor); 
     const scheduled = getIsScheduledToday(habit, cursor);
     if (scheduled && isCompletedForDay(habit, key)) {
       current += 1;
@@ -107,7 +107,7 @@ function getLast7Days() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(toDateKey(d)); // Fixed here
+    arr.push(toDateKey(d)); 
   }
   return arr;
 }
@@ -117,7 +117,7 @@ function getLast30Days() {
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    arr.push(toDateKey(d)); // Fixed here
+    arr.push(toDateKey(d)); 
   }
   return arr;
 }
@@ -211,7 +211,6 @@ function Modal({ open, title, onClose, children }) {
             exit={{ opacity: 0, scale: 0.96, y: 20 }}
             className="fixed left-1/2 top-1/2 z-50 w-[95vw] max-w-3xl -translate-x-1/2 -translate-y-1/2"
           >
-            {/* Added max-h-[90vh] and overflow-y-auto here */}
             <div className="max-h-[90vh] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-xl font-semibold">{title}</h3>
@@ -415,6 +414,10 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const [editingHabit, setEditingHabit] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Notification States
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const notifiedHabitsRef = useRef({ date: todayKey(), ids: new Set() });
+
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY);
     const isDark = storedTheme ? storedTheme === "dark" : true;
@@ -437,6 +440,52 @@ export default function HabitTrackerPro({ user, onLogout }) {
   const activeHabits = useMemo(() => habits.filter((h) => !h.archived), [habits]);
   const archivedHabits = useMemo(() => habits.filter((h) => h.archived), [habits]);
   const todayHabits = useMemo(() => activeHabits.filter((h) => getIsScheduledToday(h)), [activeHabits]);
+
+  // 1. Check initial notification permission on load
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
+  // 2. The background timer checking for due habits
+  useEffect(() => {
+    if (!notificationsEnabled || todayHabits.length === 0) return;
+
+    const checkReminders = () => {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, "0");
+      const currentMinutes = String(now.getMinutes()).padStart(2, "0");
+      const currentTime = `${currentHours}:${currentMinutes}`;
+      const todayDate = todayKey();
+
+      // Reset the notified tracker if it's a new day
+      if (notifiedHabitsRef.current.date !== todayDate) {
+        notifiedHabitsRef.current = { date: todayDate, ids: new Set() };
+      }
+
+      todayHabits.forEach((habit) => {
+        // If it's time, not completed, and we haven't notified them yet today
+        if (
+          habit.preferredTime === currentTime &&
+          !isCompletedForDay(habit, todayDate) &&
+          !notifiedHabitsRef.current.ids.has(habit._id)
+        ) {
+          new Notification("Habit Reminder", {
+            body: `It's time to: ${habit.name}\nTarget: ${habit.target} ${habit.unit}`,
+            icon: "✅", // You can replace this with a path to your app's favicon
+          });
+          notifiedHabitsRef.current.ids.add(habit._id);
+        }
+      });
+    };
+
+    // Check immediately, then check every 60 seconds
+    checkReminders();
+    const intervalId = setInterval(checkReminders, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [notificationsEnabled, todayHabits]);
 
   const filteredHabits = useMemo(() => {
     const source = showArchived ? archivedHabits : activeHabits;
@@ -518,11 +567,32 @@ export default function HabitTrackerPro({ user, onLogout }) {
     const grid = getMonthGrid(now.getFullYear(), now.getMonth());
     return grid.map((d) => {
       if (!d) return null;
-      const key = toDateKey(d); // Fixed here! No more timezone shift
+      const key = toDateKey(d); 
       const count = activeHabits.filter((h) => isCompletedForDay(h, key)).length;
       return { date: d, count };
     });
   }, [activeHabits]);
+
+  // 3. Handler to request permission when button is clicked
+  const toggleNotifications = async () => {
+    if (!("Notification" in window)) {
+      alert("This browser does not support desktop notifications.");
+      return;
+    }
+    
+    if (Notification.permission === "granted") {
+      // If already granted, toggle our local state
+      setNotificationsEnabled(!notificationsEnabled);
+    } else if (Notification.permission !== "denied") {
+      // Ask for permission
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        setNotificationsEnabled(true);
+      }
+    } else {
+      alert("Notifications are blocked. Please enable them in your browser settings.");
+    }
+  };
 
   // Network Calls Handlers
   const updateHabitProgress = async (habitId, delta) => {
@@ -722,6 +792,15 @@ export default function HabitTrackerPro({ user, onLogout }) {
                 {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 {darkMode ? "Light" : "Dark"}
               </AppButton>
+              
+              <AppButton 
+                onClick={toggleNotifications} 
+                className={`bg-white dark:bg-slate-900 ${notificationsEnabled ? "text-indigo-600 dark:text-indigo-400" : "text-slate-700 dark:text-slate-200"}`}
+              >
+                <Bell className="h-4 w-4" />
+                {notificationsEnabled ? "Notifs On" : "Notifs Off"}
+              </AppButton>
+
               <AppButton onClick={exportData} className="bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200">
                 <Download className="h-4 w-4" />
                 Export
@@ -1049,22 +1128,21 @@ export default function HabitTrackerPro({ user, onLogout }) {
                     <div key={day} className="py-2 font-medium">{day}</div>
                   ))}
                   {monthHeatmap.map((cell, idx) => (
-  <div key={idx} className="aspect-square p-0.5">
-    {cell ? (
-      <div className={`flex h-full flex-col items-center justify-center rounded-2xl ${getLevel(cell.count)}`}>
-        <span className="text-sm font-semibold leading-none">{cell.date.getDate()}</span>
-        {/* Only show the count if it's greater than 0 to save space */}
-        {cell.count > 0 && (
-          <span className="mt-1 text-[10px] font-medium leading-none opacity-90">
-            {cell.count}
-          </span>
-        )}
-      </div>
-    ) : (
-      <div className="h-full rounded-2xl bg-transparent" />
-    )}
-  </div>
-))}
+                    <div key={idx} className="aspect-square p-0.5">
+                      {cell ? (
+                        <div className={`flex h-full flex-col items-center justify-center rounded-2xl ${getLevel(cell.count)}`}>
+                          <span className="text-sm font-semibold leading-none">{cell.date.getDate()}</span>
+                          {cell.count > 0 && (
+                            <span className="mt-1 text-[10px] font-medium leading-none opacity-90">
+                              {cell.count}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="h-full rounded-2xl bg-transparent" />
+                      )}
+                    </div>
+                  ))}
                 </div>
               </Card>
 
