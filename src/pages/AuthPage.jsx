@@ -6,7 +6,7 @@ import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://habbit-tracker-backend-2rib.onrender.com";
 const GOOGLE_CLIENT_ID = "25790304178-gv2ckv70n9281o5alg4qacu3qsgjbelk.apps.googleusercontent.com";
 
-export function AuthPage({ onAuthSuccess }) {
+export default function AuthPage({ onAuthSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

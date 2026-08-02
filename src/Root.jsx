@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { AuthPage } from "./pages/AuthPage";
+// FIXED: Removed the curly braces around AuthPage
+import AuthPage from "./pages/AuthPage"; 
 import App from "./App";
 
 export function Root() {
